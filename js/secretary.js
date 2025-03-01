@@ -67,6 +67,28 @@ class Secretary {
         return this.db.updateAppointment(appointmentId, { status: 'confirmed' });
     }
     
+    cancelAppointment(appointmentId) {
+        const appointment = this.db.getAppointmentById(appointmentId);
+        
+        if (!appointment) {
+            return false;
+        }
+        
+        // Update appointment status to cancelled
+        return this.db.updateAppointment(appointmentId, { status: 'cancelled' });
+    }
+
+    rescheduleAppointment(appointmentId, newDate) {
+        const appointment = this.db.getAppointmentById(appointmentId);
+        
+        if (!appointment) {
+            return false;
+        }
+        
+        // Update appointment date
+        return this.db.updateAppointment(appointmentId, { appointmentDate: newDate });
+    }
+
     getTodayAppointments() {
         const today = new Date();
         return this.db.getAppointmentsByDate(today);

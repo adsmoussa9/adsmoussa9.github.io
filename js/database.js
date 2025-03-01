@@ -1,4 +1,24 @@
-// Simulated database for the application
+// Import Firebase libraries
+import firebase from 'firebase/app';
+import 'firebase/firestore';
+
+// Firebase configuration
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+// Initialize Firebase
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+
+const db = firebase.firestore();
+
 class Database {
     constructor() {
         this.patients = [];
@@ -16,49 +36,46 @@ class Database {
             phone: '01234567890'
         };
         
-        // Load data from localStorage
+        // Load data from Firestore
         this.loadData();
     }
     
-    // Save all data to localStorage
-    saveData() {
-        localStorage.setItem('clinic_patients', JSON.stringify(this.patients));
-        localStorage.setItem('clinic_appointments', JSON.stringify(this.appointments));
-        localStorage.setItem('clinic_followUps', JSON.stringify(this.followUps));
-        localStorage.setItem('clinic_payments', JSON.stringify(this.payments));
-        localStorage.setItem('clinic_users', JSON.stringify(this.users));
-        localStorage.setItem('clinic_settings', JSON.stringify(this.clinicSettings));
+    // Save all data to Firestore
+    async saveData() {
+        await db.collection('clinic').doc('data').set({
+            patients: this.patients,
+            appointments: this.appointments,
+            followUps: this.followUps,
+            payments: this.payments,
+            users: this.users,
+            clinicSettings: this.clinicSettings
+        });
     }
     
-    // Load all data from localStorage
-    loadData() {
-        if (localStorage.getItem('clinic_patients')) {
-            this.patients = JSON.parse(localStorage.getItem('clinic_patients'));
-        }
-        
-        if (localStorage.getItem('clinic_appointments')) {
-            this.appointments = JSON.parse(localStorage.getItem('clinic_appointments'));
-        }
-        
-        if (localStorage.getItem('clinic_followUps')) {
-            this.followUps = JSON.parse(localStorage.getItem('clinic_followUps'));
-        }
-        
-        if (localStorage.getItem('clinic_payments')) {
-            this.payments = JSON.parse(localStorage.getItem('clinic_payments'));
-        }
-        
-        if (localStorage.getItem('clinic_users')) {
-            this.users = JSON.parse(localStorage.getItem('clinic_users'));
-        }
-        
-        if (localStorage.getItem('clinic_settings')) {
-            this.clinicSettings = JSON.parse(localStorage.getItem('clinic_settings'));
+    // Load all data from Firestore
+    async loadData() {
+        const doc = await db.collection('clinic').doc('data').get();
+        if (doc.exists) {
+            const data = doc.data();
+            this.patients = data.patients || [];
+            this.appointments = data.appointments || [];
+            this.followUps = data.followUps || [];
+            this.payments = data.payments || [];
+            this.users = data.users || {
+                doctor: { username: 'admin', password: '123' },
+                secretary: { username: 'admin', password: '123' }
+            };
+            this.clinicSettings = data.clinicSettings || {
+                name: 'عيادة النساء والتوليد',
+                doctorName: 'د. محمد أحمد',
+                address: 'شارع المستشفى، القاهرة',
+                phone: '01234567890'
+            };
         }
     }
     
     // Reset the database to factory settings
-    factoryReset() {
+    async factoryReset() {
         this.patients = [];
         this.appointments = [];
         this.followUps = [];
@@ -74,17 +91,17 @@ class Database {
             phone: '01234567890'
         };
         
-        this.saveData();
+        await this.saveData();
     }
     
     // Initialize the system with settings
-    initializeSystem(settings) {
+    async initializeSystem(settings) {
         this.clinicSettings = { ...settings };
-        this.saveData();
+        await this.saveData();
     }
     
     // Patient Methods
-    addPatient(patient) {
+    async addPatient(patient) {
         const existingPatient = this.findPatientByPhone(patient.phone);
         
         if (existingPatient) {
@@ -99,11 +116,11 @@ class Database {
         };
         
         this.patients.push(newPatient);
-        this.saveData();
+        await this.saveData();
         return newPatient.id;
     }
     
-    updatePatient(patientId, updates) {
+    async updatePatient(patientId, updates) {
         const patientIndex = this.patients.findIndex(p => p.id === patientId);
         
         if (patientIndex !== -1) {
@@ -112,7 +129,7 @@ class Database {
                 ...updates
             };
             
-            this.saveData();
+            await this.saveData();
             return true;
         }
         
@@ -136,7 +153,7 @@ class Database {
     }
     
     // Appointment Methods
-    addAppointment(appointment) {
+    async addAppointment(appointment) {
         const newAppointment = {
             id: Date.now().toString(),
             ...appointment,
@@ -144,11 +161,11 @@ class Database {
         };
         
         this.appointments.push(newAppointment);
-        this.saveData();
+        await this.saveData();
         return newAppointment.id;
     }
     
-    updateAppointment(appointmentId, updates) {
+    async updateAppointment(appointmentId, updates) {
         const appointmentIndex = this.appointments.findIndex(a => a.id === appointmentId);
         
         if (appointmentIndex !== -1) {
@@ -161,10 +178,10 @@ class Database {
             if (updates.status === 'confirmed') {
                 const patientId = this.appointments[appointmentIndex].patientId;
                 const appointmentDate = this.appointments[appointmentIndex].appointmentDate;
-                this.updatePatient(patientId, { lastVisit: appointmentDate });
+                await this.updatePatient(patientId, { lastVisit: appointmentDate });
             }
             
-            this.saveData();
+            await this.saveData();
             return true;
         }
         
@@ -205,7 +222,7 @@ class Database {
     }
     
     // Follow-up Methods
-    addFollowUp(followUp) {
+    async addFollowUp(followUp) {
         const newFollowUp = {
             id: Date.now().toString(),
             ...followUp,
@@ -213,7 +230,7 @@ class Database {
         };
         
         this.followUps.push(newFollowUp);
-        this.saveData();
+        await this.saveData();
         return newFollowUp.id;
     }
     
@@ -222,7 +239,7 @@ class Database {
     }
     
     // Payment Methods
-    addPayment(payment) {
+    async addPayment(payment) {
         const newPayment = {
             id: Date.now().toString(),
             ...payment,
@@ -230,7 +247,7 @@ class Database {
         };
         
         this.payments.push(newPayment);
-        this.saveData();
+        await this.saveData();
         return newPayment.id;
     }
     
@@ -248,10 +265,10 @@ class Database {
     }
     
     // User Methods
-    updateUserPassword(userType, newPassword) {
+    async updateUserPassword(userType, newPassword) {
         if (this.users[userType]) {
             this.users[userType].password = newPassword;
-            this.saveData();
+            await this.saveData();
             return true;
         }
         
@@ -383,7 +400,28 @@ class Database {
             monthlyTrend
         };
     }
+
+    getAppointmentById(appointmentId) {
+        return this.appointments.find(a => a.id === appointmentId);
+    }
+
+    updateAppointment(appointmentId, updateData) {
+        const appointmentIndex = this.appointments.findIndex(a => a.id === appointmentId);
+        
+        if (appointmentIndex !== -1) {
+            this.appointments[appointmentIndex] = {
+                ...this.appointments[appointmentIndex],
+                ...updateData
+            };
+            
+            this.saveData();
+            return true;
+        }
+        
+        return false;
+    }
 }
 
 // Create and export a single instance of the database
-const db = new Database();
+const dbInstance = new Database();
+export default dbInstance;
